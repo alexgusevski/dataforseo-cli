@@ -1,6 +1,6 @@
 {
   "name": "dataforseo-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight CLI for DataForSEO keyword research, optimized for LLM/agent use",
   "main": "dist/index.js",
   "bin": {
@@ -21,8 +21,16 @@
     "url": "https://github.com/alexgusevski/dataforseo-cli"
   },
   "homepage": "https://github.com/alexgusevski/dataforseo-cli#readme",
-  "keywords": ["seo", "keywords", "dataforseo", "cli", "keyword-research", "ai-agent", "llm"],
-  "author": "Alexander Gusev <alexander@beundra.com> (https://beundra.com)",
+  "keywords": [
+    "seo",
+    "keywords",
+    "dataforseo",
+    "cli",
+    "keyword-research",
+    "ai-agent",
+    "llm"
+  ],
+  "author": "Alexander Gusev (https://github.com/alexgusevski)",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

@@ -150,7 +150,7 @@ The DataForSEO API is powerful but wasn't designed for AI agents. This CLI bridg
 
 ## Author
 
-**Alexander Gusev** / [Beundra AB](https://beundra.com)
+**Alexander Gusev** ([@alexgusevski](https://github.com/alexgusevski))
 
 ## License
 
