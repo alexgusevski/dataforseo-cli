@@ -1,0 +1,181 @@
+#!/usr/bin/env node
+import { Command } from "commander";
+import { setApiKey } from "./config";
+import {
+  searchVolume,
+  relatedKeywords,
+  competitorKeywords,
+  locations,
+  languages,
+} from "./api";
+import { getFormat, output, formatTsv, formatJson } from "./formatters";
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+const program = new Command();
+
+program
+  .name("dataforseo-cli")
+  .description("Lightweight keyword research CLI powered by DataForSEO")
+  .version("1.0.0");
+
+// Handle --print-cache before parsing commands
+if (process.argv.includes("--print-cache")) {
+  const { printCache } = require("./cache");
+  printCache();
+  process.exit(0);
+}
+
+// Handle --set-api-key before parsing commands
+const setKeyIdx = process.argv.indexOf("--set-api-key");
+if (setKeyIdx !== -1) {
+  const creds: Record<string, string> = {};
+  for (const part of process.argv.slice(setKeyIdx + 1)) {
+    const [k, v] = part.split("=");
+    if (k && v) creds[k] = v;
+  }
+  if (!creds.login || !creds.password) {
+    console.error("Usage: dataforseo-cli --set-api-key login=XXX password=XXX");
+    process.exit(1);
+  }
+  setApiKey(creds.login, creds.password);
+  process.exit(0);
+}
+
+const outputOpts = (cmd: Command) =>
+  cmd
+    .option("--json", "Output as JSON")
+    .option("--table", "Output as human-readable table")
+    .option("--human", "Alias for --table");
+
+// Volume command
+outputOpts(
+  program
+    .command("volume")
+    .description("Get search volume, CPC, and difficulty for keywords")
+    .argument("<keywords...>", "Keywords to look up")
+    .option("-l, --location <code>", "Location code", "2840")
+    .option("--language <code>", "Language code", "en")
+).action(async (keywords: string[], opts) => {
+  try {
+    const fmt = getFormat(opts);
+    const results = await searchVolume(
+      keywords,
+      parseInt(opts.location),
+      opts.language
+    );
+    const rows = results.map((r) => ({
+      keyword: r.keyword,
+      volume: r.volume,
+      cpc: round2(r.cpc),
+      difficulty: r.difficulty ?? "",
+      competition: r.competition,
+      trend: r.trend.join(","),
+    }));
+    console.log(output(rows, fmt));
+  } catch (e: any) {
+    console.error("Error:", e.message);
+    process.exit(1);
+  }
+});
+
+// Related command
+outputOpts(
+  program
+    .command("related")
+    .description("Find related keywords from a seed keyword")
+    .argument("<seed>", "Seed keyword")
+    .option("-l, --location <code>", "Location code", "2840")
+    .option("--language <code>", "Language code", "en")
+    .option("-n, --limit <n>", "Max results", "50")
+).action(async (seed: string, opts) => {
+  try {
+    const fmt = getFormat(opts);
+    const results = await relatedKeywords(
+      seed,
+      parseInt(opts.location),
+      opts.language,
+      parseInt(opts.limit)
+    );
+    const rows = results.map((r) => ({
+      keyword: r.keyword,
+      volume: r.volume,
+      cpc: round2(r.cpc),
+      difficulty: r.difficulty ?? "",
+      competition: round2(r.competition),
+    }));
+    console.log(output(rows, fmt));
+  } catch (e: any) {
+    console.error("Error:", e.message);
+    process.exit(1);
+  }
+});
+
+// Competitor command
+outputOpts(
+  program
+    .command("competitor")
+    .description("Get keywords a domain ranks for")
+    .argument("<domain>", "Target domain")
+    .option("-l, --location <code>", "Location code", "2840")
+    .option("--language <code>", "Language code", "en")
+    .option("-n, --limit <n>", "Max results", "50")
+).action(async (domain: string, opts) => {
+  try {
+    const fmt = getFormat(opts);
+    const results = await competitorKeywords(
+      domain,
+      parseInt(opts.location),
+      opts.language,
+      parseInt(opts.limit)
+    );
+    const rows = results.map((r) => ({
+      keyword: r.keyword,
+      pos: r.position,
+      volume: r.volume,
+      cpc: round2(r.cpc),
+      difficulty: r.difficulty ?? "",
+      url: r.url,
+    }));
+    console.log(output(rows, fmt));
+  } catch (e: any) {
+    console.error("Error:", e.message);
+    process.exit(1);
+  }
+});
+
+// Locations command
+program
+  .command("locations")
+  .description("Search location codes")
+  .argument("[search]", "Filter locations by name")
+  .option("--json", "Output as JSON")
+  .action(async (search: string | undefined, opts: any) => {
+    try {
+      const results = await locations(search);
+      console.log(opts.json ? formatJson(results) : formatTsv(results));
+    } catch (e: any) {
+      console.error("Error:", e.message);
+      process.exit(1);
+    }
+  });
+
+// Languages command
+program
+  .command("languages")
+  .description("Search language codes")
+  .argument("[search]", "Filter languages by name")
+  .option("--json", "Output as JSON")
+  .action(async (search: string | undefined, opts: any) => {
+    try {
+      const results = await languages(search);
+      console.log(opts.json ? formatJson(results) : formatTsv(results));
+    } catch (e: any) {
+      console.error("Error:", e.message);
+      process.exit(1);
+    }
+  });
+
+program.parse();

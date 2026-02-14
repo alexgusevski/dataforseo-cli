@@ -1,0 +1,12 @@
+src/
+tsconfig.json
+*.ts
+RESEARCH.md
+API_COMPARISON.md
+ROADMAP.md
+SPEC.md
+SKILL.md
+.git/
+.gitignore
+node_modules/
+*.tgz

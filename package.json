@@ -1,0 +1,38 @@
+{
+  "name": "dataforseo-cli",
+  "version": "1.0.0",
+  "description": "Lightweight CLI for DataForSEO keyword research, optimized for LLM/agent use",
+  "main": "dist/index.js",
+  "bin": {
+    "dataforseo-cli": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexgusevski/dataforseo-cli"
+  },
+  "homepage": "https://github.com/alexgusevski/dataforseo-cli#readme",
+  "keywords": ["seo", "keywords", "dataforseo", "cli", "keyword-research", "ai-agent", "llm"],
+  "author": "Alexander Gusev <alexander@beundra.com> (https://beundra.com)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.0"
+  }
+}
