@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { setApiKey } from "./config";
+import { setApiKey, setCredentials } from "./config";
 import {
   searchVolume,
   relatedKeywords,
@@ -28,19 +28,26 @@ if (process.argv.includes("--print-cache")) {
   process.exit(0);
 }
 
-// Handle --set-api-key before parsing commands
-const setKeyIdx = process.argv.indexOf("--set-api-key");
-if (setKeyIdx !== -1) {
+// Handle --set-credentials / --set-api-key before parsing commands
+const setCredsIdx = Math.max(
+  process.argv.indexOf("--set-credentials"),
+  process.argv.indexOf("--set-api-key")
+);
+if (setCredsIdx !== -1) {
   const creds: Record<string, string> = {};
-  for (const part of process.argv.slice(setKeyIdx + 1)) {
+  for (const part of process.argv.slice(setCredsIdx + 1)) {
     const [k, v] = part.split("=");
     if (k && v) creds[k] = v;
   }
-  if (!creds.login || !creds.password) {
-    console.error("Usage: dataforseo-cli --set-api-key login=XXX password=XXX");
+  if (creds.base64) {
+    setCredentials(undefined, undefined, creds.base64);
+  } else if (creds.login && creds.password) {
+    setCredentials(creds.login, creds.password);
+  } else {
+    console.error("Usage: dataforseo-cli --set-credentials login=XXX password=XXX");
+    console.error("   or: dataforseo-cli --set-credentials base64=YOUR_BASE64_TOKEN");
     process.exit(1);
   }
-  setApiKey(creds.login, creds.password);
   process.exit(0);
 }
 
