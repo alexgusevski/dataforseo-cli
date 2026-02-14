@@ -1,7 +1,15 @@
-# Skill: Keyword Research with dataforseo-cli
+---
+name: dataforseo-cli
+description: LLM-friendly keyword research CLI for AI agents. Check search volume, CPC, keyword difficulty, and competition via DataForSEO API. Find related keywords, analyze competitor rankings. Outputs TSV by default (optimized for agent context windows). Use when doing SEO research, content planning, or competitive keyword analysis.
+license: MIT
+metadata:
+  author: alexgusevski
+  version: "1.0.0"
+---
 
-## What
-CLI tool for keyword research using DataForSEO API. Outputs TSV by default (fewer tokens than JSON), with `--json` and `--table` alternatives.
+# Keyword Research with dataforseo-cli
+
+LLM-friendly keyword research CLI. Wraps the DataForSEO API and outputs TSV by default — compact, structured, and optimized for agent context windows.
 
 ## When to Use
 - Before writing SEO articles — check volume and difficulty for target keywords
@@ -45,7 +53,7 @@ Add `--location 2752 --language sv` for Sweden. Use `dataforseo-cli locations <s
 
 | Flag | Description |
 |------|-------------|
-| *(default)* | TSV — fewest tokens, best for LLM pipelines |
+| *(default)* | TSV — fewest tokens, best for LLM/agent pipelines |
 | `--json` | JSON array |
 | `--table` / `--human` | Human-readable table |
 

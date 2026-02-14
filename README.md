@@ -1,8 +1,8 @@
 # dataforseo-cli
 
-CLI wrapper for the [DataForSEO API](https://dataforseo.com). Outputs keyword data as TSV by default (fewer tokens than JSON), with `--json` and `--table` alternatives.
+LLM-friendly keyword research CLI built for AI agents. Wraps the [DataForSEO API](https://dataforseo.com) and outputs TSV by default — compact, structured, and optimized for agent context windows. Also supports `--json` and `--table` output.
 
-Supports keyword volume lookups, related keyword discovery, and competitor keyword analysis.
+Built to plug into SEO automation pipelines, coding agents, and any workflow where an AI needs keyword data without parsing HTML or navigating dashboards.
 
 ## Install
 
@@ -105,16 +105,28 @@ dataforseo-cli languages swedish
 
 | Flag | Description |
 |------|-------------|
-| *(default)* | TSV — uses fewer tokens than JSON |
+| *(default)* | TSV — fewest tokens, ideal for LLM/agent pipelines |
 | `--json` | JSON array |
 | `--table` / `--human` | Human-readable table |
 
+## Why TSV?
+
+Most keyword tools output JSON or HTML tables. For AI agents, that's wasteful — JSON brackets and keys burn tokens, HTML is even worse. TSV is the most compact structured format: easy to parse, minimal overhead, and fits more data in a context window.
+
 ## Caching
 
-Results cached in `~/.config/dataforseo-cli/cache/` to avoid duplicate API calls.
+Results cached in `~/.config/dataforseo-cli/cache/` to avoid duplicate API calls (and costs).
 
 ```bash
 dataforseo-cli --print-cache
+```
+
+## Agent Skill
+
+This repo includes a [SKILL.md](./SKILL.md) following the [Agent Skills](https://agentskills.io) spec. Install it in any compatible agent:
+
+```bash
+npx skills add alexgusevski/dataforseo-cli
 ```
 
 ## Author
