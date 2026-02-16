@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { setApiKey, setCredentials } from "./config";
+import { setApiKey, setCredentials, checkCredentials } from "./config";
 import {
   searchVolume,
   relatedKeywords,
@@ -19,7 +19,7 @@ const program = new Command();
 program
   .name("dataforseo-cli")
   .description("Lightweight keyword research CLI powered by DataForSEO")
-  .version("1.0.0");
+  .version("1.0.5");
 
 // Handle --print-cache before parsing commands
 if (process.argv.includes("--print-cache")) {
@@ -152,6 +152,21 @@ outputOpts(
     process.exit(1);
   }
 });
+
+// Status command
+program
+  .command("status")
+  .description("Check if API credentials are configured")
+  .action(() => {
+    const { configured, maskedLogin } = checkCredentials();
+    if (configured) {
+      console.log(`✓ Credentials configured (login: ${maskedLogin})`);
+    } else {
+      console.log("✗ No credentials configured");
+      console.log("Run: dataforseo-cli --set-credentials login=XXX password=XXX");
+      process.exit(1);
+    }
+  });
 
 // Locations command
 program

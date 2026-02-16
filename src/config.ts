@@ -45,6 +45,27 @@ export function getApiKey(): { login: string; password: string } {
   return config;
 }
 
+function maskLogin(login: string): string {
+  const atIdx = login.indexOf("@");
+  if (atIdx <= 2) return login[0] + "*".repeat(Math.max(atIdx - 1, 0)) + login.substring(atIdx);
+  return login[0] + "*".repeat(atIdx - 2) + login[atIdx - 1] + login.substring(atIdx);
+}
+
+export function checkCredentials(): { configured: boolean; maskedLogin?: string } {
+  if (!fs.existsSync(CONFIG_FILE)) {
+    return { configured: false };
+  }
+  try {
+    const config: Config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
+    if (config.login && config.password) {
+      return { configured: true, maskedLogin: maskLogin(config.login) };
+    }
+    return { configured: false };
+  } catch {
+    return { configured: false };
+  }
+}
+
 export function getAuthHeader(): string {
   const { login, password } = getApiKey();
   return "Basic " + Buffer.from(`${login}:${password}`).toString("base64");

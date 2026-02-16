@@ -13,16 +13,28 @@ npm install -g dataforseo-cli
 ## Setup
 
 ```bash
-# Login + password
+# Check if credentials are already configured
+dataforseo-cli status
+
+# If not, set them:
 dataforseo-cli --set-credentials login=YOUR_LOGIN password=YOUR_PASSWORD
 
-# Or base64 token (from DataForSEO email)
+# Or with base64 token (from DataForSEO email)
 dataforseo-cli --set-credentials base64=YOUR_BASE64_TOKEN
 ```
 
 Credentials stored in `~/.config/dataforseo-cli/config.json`.
 
 ## Commands
+
+### `status`
+
+Check if API credentials are configured (no API call, no secrets printed).
+
+```bash
+dataforseo-cli status
+# ✓ Credentials configured (login: k*****t@example.com)
+```
 
 ### `volume`
 
