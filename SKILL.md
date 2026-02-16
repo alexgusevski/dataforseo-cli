@@ -4,7 +4,7 @@ description: LLM-friendly keyword research CLI for AI agents. Check search volum
 license: MIT
 metadata:
   author: alexgusevski
-  version: "1.0.5"
+  version: "1.0.6"
 ---
 
 # Keyword Research with dataforseo-cli

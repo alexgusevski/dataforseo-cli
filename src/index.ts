@@ -19,7 +19,7 @@ const program = new Command();
 program
   .name("dataforseo-cli")
   .description("Lightweight keyword research CLI powered by DataForSEO")
-  .version("1.0.5");
+  .version("1.0.6");
 
 // Handle --print-cache before parsing commands
 if (process.argv.includes("--print-cache")) {
