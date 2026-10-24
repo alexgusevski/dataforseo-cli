@@ -8,6 +8,36 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 interface Config {
   login: string;
   password: string;
+  max_cost?: number;
+  session_cap?: number;
+}
+
+// Non-secret settings that `dataforseo-cli config` may read and change.
+export const SETTINGS: Record<string, string> = {
+  max_cost: "Refuse any single call whose estimated cost exceeds this many USD (default 1)",
+  session_cap: "Refuse calls once the session total would exceed this many USD (default: no cap)",
+};
+
+function readConfig(): Partial<Config> {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+export function getSetting(key: string): number | undefined {
+  const v = (readConfig() as any)[key];
+  return typeof v === "number" ? v : undefined;
+}
+
+export function setSetting(key: string, value: number | undefined): void {
+  if (!(key in SETTINGS)) throw new Error(`Unknown setting "${key}". Known: ${Object.keys(SETTINGS).join(", ")}`);
+  const config: any = readConfig();
+  if (value === undefined) delete config[key];
+  else config[key] = value;
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
 export function setApiKey(login: string, password: string): void {
@@ -30,7 +60,7 @@ export function setCredentials(login?: string, password?: string, base64?: strin
     process.exit(1);
   }
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ login, password }, null, 2));
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ ...readConfig(), login, password }, null, 2), { mode: 0o600 });
   console.log(`API credentials saved to ${CONFIG_FILE}`);
 }
 
