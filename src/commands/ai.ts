@@ -108,6 +108,8 @@ export function registerAi(program: Command): void {
     desc: "AI search volume (how often keywords are asked in AI assistants) with 12-month trend",
     path: `${AI}/ai_keyword_data/keywords_search_volume/live`,
     args: ["<keywords...>"],
+    maxBatch: 1000,
+    perKeyword: true,
     limit: 100,
     apiLimit: false,
     ttl: 24 * 30,

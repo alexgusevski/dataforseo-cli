@@ -45,8 +45,8 @@ run() {
   local raw="$TMP/$name.json"
   local extra=(--raw-file "$raw" --max-cost 0.5)
   [[ -n "$CACHE" ]] && extra+=("$CACHE")
-  # Legacy commands (volume, related, ...) keep their original flags only.
-  [[ "${LEGACY:-0}" == 1 ]] && extra=()
+  # Account commands take no call flags.
+  [[ "${PLAIN:-0}" == 1 ]] && extra=()
   [[ "${NO_RAW:-0}" == 1 ]] && extra=(--max-cost 0.5 ${CACHE:+"$CACHE"})
   "${CLI[@]}" "$@" "${extra[@]}" >"$TMP/$name.out" 2>"$TMP/$name.err"
   local rc=$?
@@ -69,12 +69,10 @@ run() {
   fi
 }
 
-LEGACY=1 run status              status
-LEGACY=1 run balance             balance
-LEGACY=1 run volume              volume creatine "creatine gummies"
-LEGACY=1 run related             related creatine -n 5
-LEGACY=1 run competitor          competitor thorne.com -n 5
-LEGACY=1 run locations-api       locations stockholm --api serp
+PLAIN=1 run status               status
+PLAIN=1 run balance              balance
+PLAIN=1 run locations            locations stockholm --api serp
+PLAIN=1 run languages            languages swedish --api labs
 
 run serp-organic                 serp organic "is creatine safe"
 run serp-organic-queue           serp organic "creatine for women" --queue --timeout 300

@@ -27,7 +27,7 @@ Credentials are stored in `~/.config/dataforseo-cli/config.json` (mode 600) and 
 
 | Job | Command |
 |---|---|
-| Search volume, CPC, difficulty | `dataforseo-cli volume "kw one" "kw two" -l 2752 --language sv` |
+| Search volume, CPC, difficulty, intent, trend | `dataforseo-cli labs overview "kw one" "kw two" -l 2752 --language sv` |
 | More keywords around a topic | `dataforseo-cli labs suggestions "creatine" -n 50` (or `labs ideas`, `labs related`) |
 | Google Trends | `dataforseo-cli trends google "creatine"` (time series, regions, related queries/topics) |
 | SERP with AI Overview + People Also Ask | `dataforseo-cli serp organic "is creatine safe"` |
@@ -78,7 +78,7 @@ Every call prints its real cost on stderr. Before a call the CLI estimates its c
 - `dataforseo-cli config session_cap 2` refuses calls once the session total would pass $2. `dataforseo-cli session` shows the running total (a session ends after 6 idle hours; `session --reset` starts a new one).
 - `dataforseo-cli config max_cost 0.5` changes the per-call default.
 
-Typical costs: SERP $0.002, Labs $0.012, Trends $0.001-0.011, Backlinks $0.024, Content Analysis $0.024, reviews/app/business queue tasks under $0.002. **Expensive**: Google Ads and Bing (`volume`, `keywords *`) $0.09, LLM Mentions (`ai mentions`, `ai mention-metrics`, `ai top-*`) $0.10, `domain whois` $0.12, `apps *-listings` $0.10. Batch keywords into one call (volume takes up to 1000).
+Typical costs: SERP $0.002, Labs $0.012, Trends $0.001-0.011, Backlinks $0.024, Content Analysis $0.024, reviews/app/business queue tasks under $0.002. **Expensive**: Google Ads and Bing (`keywords *`) $0.09, LLM Mentions (`ai mentions`, `ai mention-metrics`, `ai top-*`) $0.10, `domain whois` $0.12, `apps *-listings` $0.10. Batch keywords into one call (`labs overview` takes up to 700, `labs difficulty` and `keywords volume` up to 1000). For volumes prefer `labs overview` ($0.012) over `keywords volume` (Google Ads, $0.09).
 
 ## Live vs queue
 
@@ -104,15 +104,15 @@ Errors are one line on stderr with what to do, exit code 1. Examples:
 
 ## Command reference
 
-### Keyword basics (the original commands, unchanged)
+Missing data prints as an empty cell, never 0. Commands that take a keyword list (`labs overview`, `labs difficulty`, `labs intent`, `labs history`, `labs amazon-volume`, `keywords volume`, `keywords bing-volume`, `ai volume`) return one row per keyword you asked for; a keyword with no data gets a row with only its name. Lists longer than the API allows (700 keywords for `labs overview` and `labs history`, 1000 elsewhere) are split into several calls automatically; each call is billed.
+
+### Account and setup
 
 | Command | What it returns | Columns |
 |---|---|---|
-| `volume <keywords...>` | Google Ads volume + Labs difficulty, cached per keyword ($0.10 per uncached batch) | keyword, volume, cpc, difficulty, competition, trend (12 months, newest first) |
-| `related <seed> -n 50` | Keyword suggestions (Labs) | keyword, volume, cpc, difficulty, competition |
-| `competitor <domain> -n 50` | Keywords a domain ranks for | keyword, pos, volume, cpc, difficulty, url |
-| `locations [search] --api <api>` / `languages [search] --api <api>` | Location and language codes | code, name, country, type / name, code |
+| `locations [search] --api <api>` / `languages [search] --api <api>` | Location and language codes (free, cached 30 days) | code, name, country, type / name, code |
 | `status`, `balance`, `prices [filter]`, `session [--reset]`, `config [key] [value]` | Credentials check, balance and subscriptions, price list, spend, settings | |
+| `--print-cache` | Number and size of cached responses | |
 
 ### `serp`
 

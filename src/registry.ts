@@ -33,6 +33,22 @@ export interface TypedCommand {
   body: (ctx: Ctx) => Record<string, any> | Record<string, any>[];
   map?: (response: any, ctx: Ctx) => Mapped;
   columns?: string; // documented output columns
+  perKeyword?: boolean; // one row per requested keyword: keywords without data get an empty row
+  maxBatch?: number; // API limit on the list argument; longer lists are split into several calls
+}
+
+function chunk<T>(list: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+// Keywords the API returned nothing for still get a row, with empty cells, so "no data"
+// is visible instead of the keyword silently disappearing.
+export function addMissingKeywords(rows: Row[], keywords: string[]): Row[] {
+  const have = new Set(rows.map((r) => String(r.keyword ?? "").toLowerCase()));
+  const missing = keywords.filter((k) => !have.has(k.trim().toLowerCase())).map((k) => ({ keyword: k.trim() }));
+  return [...rows, ...missing];
 }
 
 const isNum = (v: string) => /^\d+$/.test(String(v).trim());
@@ -163,18 +179,30 @@ export function register(parent: Command, def: TypedCommand): Command {
     try {
       const limit = def.limit === 0 ? 0 : parseInt(opts.limit ?? String(def.limit ?? 20));
       const ctx: Ctx = { args, opts, limit, trim: { fullText: !!opts.fullText } };
-      const built = def.body(ctx);
-      const tasks = (Array.isArray(built) ? built : [built]).map((t) => {
-        const task: Record<string, any> = geoMode === "none" ? { ...t } : { ...geo(opts, geoMode), ...t };
-        const limKey = def.apiLimit === undefined ? "limit" : def.apiLimit;
-        if (limKey && limit > 0 && task[limKey] === undefined) {
-          task[limKey] = def.apiLimitMax ? Math.min(limit, def.apiLimitMax) : limit;
-        }
-        return { ...task, ...extraParams(opts.param) };
-      });
+      const buildTasks = (c: Ctx) => {
+        const built = def.body(c);
+        return (Array.isArray(built) ? built : [built]).map((t) => {
+          const task: Record<string, any> = geoMode === "none" ? { ...t } : { ...geo(opts, geoMode), ...t };
+          const limKey = def.apiLimit === undefined ? "limit" : def.apiLimit;
+          if (limKey && limit > 0 && task[limKey] === undefined) {
+            task[limKey] = def.apiLimitMax ? Math.min(limit, def.apiLimitMax) : limit;
+          }
+          return { ...task, ...extraParams(opts.param) };
+        });
+      };
+      // Lists over the API limit go out as several calls (live endpoints take one task per call);
+      // their tasks are merged into one response for the mapper.
+      const list: any[] | null = def.maxBatch && Array.isArray(args[0]) ? args[0] : null;
+      const chunks = list && list.length > def.maxBatch! ? chunk(list, def.maxBatch!) : [null];
       const path = typeof def.path === "function" ? def.path(ctx) : def.path;
-      const { response } = await call(path, tasks, callOpts(opts, def.ttl));
+      let response: any = null;
+      for (const part of chunks) {
+        const c = part ? { ...ctx, args: [part, ...args.slice(1)] } : ctx;
+        const { response: r } = await call(path, buildTasks(c), callOpts(opts, def.ttl));
+        response = response ? { ...response, tasks: [...(response.tasks || []), ...(r.tasks || [])] } : r;
+      }
       const mapped = def.map ? def.map(response, ctx) : genericRows(response, ctx.trim);
+      if (def.perKeyword) mapped.rows = addMissingKeywords(mapped.rows, args[0]);
       emit(mapped, opts, limit);
     } catch (e) {
       fail(e);

@@ -169,3 +169,20 @@ describe("api key=value fields", () => {
     expect(() => fieldArgs(["nokey"])).toThrow(/key=value/);
   });
 });
+
+describe("missing data", () => {
+  it("prints missing values as empty cells, never 0", async () => {
+    const { pick } = await import("../src/map");
+    const ctx: any = { args: [], opts: {}, limit: 20, trim: {} };
+    expect(pick({ keyword: "x", keyword_info: { search_volume: null, cpc: null } }, { keyword: "keyword", volume: "keyword_info.search_volume", cpc: "keyword_info.cpc" }, ctx)).toEqual({ keyword: "x", volume: "", cpc: "" });
+    expect(pick({ keyword: "x", keyword_info: { search_volume: 0 } }, { volume: "keyword_info.search_volume" }, ctx)).toEqual({ volume: 0 });
+  });
+
+  it("keeps requested keywords the API returned nothing for", async () => {
+    const { addMissingKeywords } = await import("../src/registry");
+    expect(addMissingKeywords([{ keyword: "creatine", volume: 10 }], ["Creatine", "nothing here"])).toEqual([
+      { keyword: "creatine", volume: 10 },
+      { keyword: "nothing here" },
+    ]);
+  });
+});

@@ -4,6 +4,7 @@ import { registerAi } from "./ai";
 import { registerApi } from "./api";
 import { registerBacklinks } from "./backlinks";
 import { registerContent, registerDomain } from "./content";
+import { registerGeo } from "./geo";
 import { registerKeywords } from "./keywords";
 import { registerLabs } from "./labs";
 import { registerAppData, registerBusiness, registerMerchant } from "./merchant";
@@ -25,5 +26,6 @@ export function registerAll(program: Command): void {
   registerBusiness(program);
   registerAi(program);
   registerAccount(program);
+  registerGeo(program);
   registerApi(program);
 }
