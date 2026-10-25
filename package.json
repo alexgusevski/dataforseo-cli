@@ -1,16 +1,19 @@
 {
   "name": "dataforseo-cli",
-  "version": "1.1.0",
-  "description": "Lightweight CLI for DataForSEO keyword research, optimized for LLM/agent use",
+  "version": "3.0.0",
+  "description": "Agent-friendly CLI for the whole DataForSEO v3 API: compact TSV output, cost guards, cache, full endpoint coverage",
   "main": "dist/index.js",
   "bin": {
-    "dataforseo-cli": "dist/index.js"
+    "dataforseo-cli": "dist/index.js",
+    "dfs": "dist/index.js"
   },
   "files": [
     "dist/",
     "data/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "SKILL.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -26,13 +29,19 @@
   },
   "homepage": "https://github.com/alexgusevski/dataforseo-cli#readme",
   "keywords": [
-    "seo",
-    "keywords",
-    "dataforseo",
-    "cli",
-    "keyword-research",
     "ai-agent",
-    "llm"
+    "ai-overview",
+    "amazon",
+    "backlinks",
+    "cli",
+    "dataforseo",
+    "google-trends",
+    "keyword-research",
+    "keywords",
+    "llm",
+    "seo",
+    "serp",
+    "trustpilot"
   ],
   "author": "Alexander Gusev (https://github.com/alexgusevski)",
   "license": "MIT",

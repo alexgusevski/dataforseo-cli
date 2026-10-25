@@ -30,8 +30,8 @@ export function addCost(cost: number): Session {
   s.calls += 1;
   s.last = Date.now();
   try {
-    fs.mkdirSync(path.dirname(FILE), { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(s));
+    fs.mkdirSync(path.dirname(FILE), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(FILE, JSON.stringify(s), { mode: 0o600 });
   } catch {
     // non-fatal
   }

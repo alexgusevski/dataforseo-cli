@@ -16,8 +16,8 @@ export interface Price {
 
 export function savePrices(price: any): void {
   try {
-    fs.mkdirSync(path.dirname(FILE), { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(price));
+    fs.mkdirSync(path.dirname(FILE), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(FILE, JSON.stringify(price), { mode: 0o600 });
   } catch {
     // non-fatal
   }

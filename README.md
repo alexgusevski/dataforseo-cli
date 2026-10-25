@@ -1,13 +1,13 @@
 # dataforseo-cli
 
-Agent-friendly CLI for the whole [DataForSEO](https://dataforseo.com) v3 API. Every command prints a few curated columns as TSV (or trimmed JSON), never the raw API response: envelopes, metadata, layout and tracking fields are stripped, long text is truncated and lists stop at a default limit. Across 89 real calls the output was 64× smaller than the raw responses.
+Agent-friendly CLI for the whole [DataForSEO](https://dataforseo.com) v3 API. Every command prints a few curated columns as TSV (or trimmed JSON), never the raw API response: envelopes, metadata, layout and tracking fields are stripped, long text is truncated and lists stop at a default limit. Across 89 real calls the output was 64× smaller than the raw responses. See [CHANGELOG.md](./CHANGELOG.md).
 
 It covers Google SERPs (with AI Overviews and People Also Ask), Google Trends, Google Ads and Bing keyword data, DataForSEO Labs (keywords, competitors, traffic, Amazon keywords), Backlinks, OnPage, Content Analysis, Domain Analytics, Merchant (Amazon, Google Shopping), App Data (App Store, Google Play), Business Data (Trustpilot, Google reviews, Tripadvisor) and AI Optimization (LLM mentions, AI search volume, ChatGPT/Claude/Gemini/Perplexity answers). An `api` passthrough reaches any of the 565 v3 endpoints.
 
 ## Install
 
 ```bash
-npm install -g dataforseo-cli          # published release
+npm install -g dataforseo-cli          # published release; installs `dataforseo-cli` and the short alias `dfs`
 # or from this repo:
 npm install && npm run build && npm install -g .
 ```
@@ -273,6 +273,7 @@ Covers all 565 DataForSEO v3 endpoints (paths and parameters come from DataForSE
 ```bash
 dataforseo-cli api --list jobs                                   # find endpoints (path, method, queue?, description)
 dataforseo-cli api --describe serp/google/jobs/live/advanced     # its request fields
+dataforseo-cli api serp/google/jobs/live/advanced keyword="seo manager" location_code=2840
 dataforseo-cli api serp/google/jobs/live/advanced --body '{"keyword":"seo manager","location_code":2840}'
 dataforseo-cli api backlinks/referring_networks/live --body-file body.json
 echo '[{"target":"example.com"}]' | dataforseo-cli api backlinks/summary/live
@@ -280,7 +281,7 @@ dataforseo-cli api serp/google/organic/live/advanced --queue --body '{"keyword":
 dataforseo-cli api ai_optimization/claude/llm_responses/models   # GET endpoints need no body
 ```
 
-`--body` takes one task object or an array of tasks (`--body -` reads stdin). A `task_post` path is polled until the result is ready.
+Request fields go after the path as `key=value` (values that parse as JSON, such as `2840`, `true` or `["a","b"]`, keep their type), or as `--body` with one task object or an array of tasks (`--body -` reads stdin). A `task_post` path is polled until the result is ready.
 
 ## Notes
 

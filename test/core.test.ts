@@ -156,3 +156,16 @@ describe("geo options", () => {
     expect(geo({ location: "2840", language: "en_US" })).toEqual({ location_code: 2840, language_code: "en_US" });
   });
 });
+
+describe("api key=value fields", () => {
+  it("parses JSON values and keeps plain strings", async () => {
+    const { fieldArgs } = await import("../src/commands/api");
+    expect(fieldArgs(["keyword=seo manager", "location_code=2840", 'keywords=["a","b"]', "load_async_ai_overview=true"])).toEqual({
+      keyword: "seo manager",
+      location_code: 2840,
+      keywords: ["a", "b"],
+      load_async_ai_overview: true,
+    });
+    expect(() => fieldArgs(["nokey"])).toThrow(/key=value/);
+  });
+});

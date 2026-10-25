@@ -27,7 +27,34 @@ const program = new Command();
 
 program
   .name("dataforseo-cli")
-  .description("Lightweight keyword research CLI powered by DataForSEO")
+  .description(
+    "Agent-friendly CLI for the whole DataForSEO v3 API: SERPs with AI Overviews, Trends, keywords, competitors, backlinks, Amazon, reviews, app stores, LLM mentions. Prints compact TSV, never raw API JSON."
+  )
+  .addHelpText(
+    "after",
+    `
+Start here:
+  dataforseo-cli status                          credentials configured? (free)
+  dataforseo-cli <group> --help                  commands in a group, e.g. serp, labs, merchant
+  dataforseo-cli <group> <command> --help        flags and output columns
+
+Common research jobs:
+  volume "kw1" "kw2" -l 2752 --language sv       search volume, CPC, difficulty, 12-month trend
+  labs suggestions "creatine" -n 50              more keywords around a topic
+  trends google "creatine"                       Google Trends: time series, regions, related queries
+  serp organic "is creatine safe"                top results + AI Overview (cited URLs) + People Also Ask
+  labs domain-overview thorne.com                a competitor's keywords, traffic, top-10 counts
+  labs competitors thorne.com                    competing domains
+  merchant amazon-products "creatine gummies"    Amazon results: ASIN, price, rating, reviews
+  business-data trustpilot-reviews thorne.com    Trustpilot reviews
+  app-data apple-reviews 389801252               App Store reviews (google-reviews for Play)
+  ai mentions thorne.com                         brand mentions in ChatGPT and AI Overviews
+  api --list jobs                                any other endpoint: find it, --describe it, call it
+
+Output: TSV on stdout (--json for compact JSON, --fields to pick columns, -n to change the row limit).
+One status line on stderr: cost=$… rows=… cached=… session=$…  Calls estimated above --max-cost
+(default $1) are refused. -l takes a location code or name, --language a code or name (default US, en).`
+  )
   .version(require("../package.json").version);
 
 // Handle --print-cache before parsing commands

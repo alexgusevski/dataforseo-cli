@@ -37,6 +37,22 @@ async function readStdin(timeoutMs = 2000): Promise<string> {
   });
 }
 
+// key=value pairs; values parse as JSON when they can (2840, true, ["a","b"]).
+export function fieldArgs(pairs: string[]): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const p of pairs) {
+    const i = p.indexOf("=");
+    if (i < 1) throw new CliError(`Expected key=value, got "${p}"`);
+    const v = p.slice(i + 1);
+    try {
+      out[p.slice(0, i)] = JSON.parse(v);
+    } catch {
+      out[p.slice(0, i)] = v;
+    }
+  }
+  return out;
+}
+
 function parseBody(text: string, from: string): any {
   try {
     return JSON.parse(text);
@@ -48,8 +64,9 @@ function parseBody(text: string, from: string): any {
 export function registerApi(program: Command): void {
   const cmd = program
     .command("api")
-    .description("Call ANY DataForSEO v3 endpoint (output is still trimmed). Use --list to find endpoints, --describe for params")
+    .description("Call ANY DataForSEO v3 endpoint (output is still trimmed). Find it with --list, see its fields with --describe")
     .argument("[path]", "Endpoint path, e.g. serp/google/organic/live/advanced (or a filter with --list)")
+    .argument("[fields...]", "Request fields as key=value (numbers, true/false and JSON arrays/objects are parsed)")
     .option("--body <json>", "Request body: one task object or an array of tasks ('-' reads stdin)")
     .option("--body-file <file>", "Read the request body from a JSON file")
     .option("--list", "List endpoints (path argument filters them)")
@@ -63,11 +80,12 @@ export function registerApi(program: Command): void {
 Examples:
   dataforseo-cli api --list trustpilot
   dataforseo-cli api --describe serp/google/jobs/live/advanced
+  dataforseo-cli api serp/google/jobs/live/advanced keyword="seo manager" location_code=2840
   dataforseo-cli api serp/google/jobs/live/advanced --body '{"keyword":"seo manager","location_code":2840}'
   echo '[{"target":"example.com"}]' | dataforseo-cli api backlinks/summary/live`
   );
 
-  cmd.action(async (rawPath: string | undefined, opts: any) => {
+  cmd.action(async (rawPath: string | undefined, fields: string[], opts: any) => {
     try {
       const limit = parseInt(opts.limit);
       if (opts.list) {
@@ -109,6 +127,10 @@ Examples:
         if (stdin) body = parseBody(stdin, "stdin");
       }
       if (body !== undefined && !Array.isArray(body)) body = [body];
+      if (fields.length) {
+        const extra = fieldArgs(fields);
+        body = (body ?? [{}]).map((t: any) => ({ ...t, ...extra }));
+      }
 
       const { response } = await call(path, body, callOpts(opts, ttlFor(path)));
       emit(genericRows(response, { fullText: !!opts.fullText }), opts, limit);

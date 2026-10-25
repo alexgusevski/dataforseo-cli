@@ -28,7 +28,7 @@ function load(): CacheStore {
 
 function save(store: CacheStore): void {
   try {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    fs.mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
     // Prune expired entries on save
     const now = Date.now();
     const pruned: CacheStore = {};
@@ -37,7 +37,7 @@ function save(store: CacheStore): void {
         pruned[k] = v;
       }
     }
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(pruned));
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(pruned), { mode: 0o600 });
   } catch {
     // Cache write failure is non-fatal
   }
@@ -81,8 +81,8 @@ export function getRequest(key: string, ttlHours: number): any | null {
 
 export function setRequest(key: string, response: any): void {
   try {
-    fs.mkdirSync(REQ_DIR, { recursive: true });
-    fs.writeFileSync(path.join(REQ_DIR, `${key}.json`), JSON.stringify(response));
+    fs.mkdirSync(REQ_DIR, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(REQ_DIR, `${key}.json`), JSON.stringify(response), { mode: 0o600 });
   } catch {
     // Cache write failure is non-fatal
   }

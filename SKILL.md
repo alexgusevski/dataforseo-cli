@@ -4,7 +4,7 @@ description: The only SEO and market-data tool agents need. Covers every DataFor
 license: MIT
 metadata:
   author: alexgusevski
-  version: "1.1.0"
+  version: "3.0.0"
 ---
 
 # dataforseo-cli
@@ -17,6 +17,7 @@ One CLI for the whole DataForSEO v3 API, built for agents: every command prints 
 
 ```bash
 dataforseo-cli status     # credentials configured? (no API call, never prints secrets)
+dataforseo-cli --help     # groups and the common research jobs; `dfs` is a short alias of dataforseo-cli
 dataforseo-cli balance    # balance + Backlinks / LLM Mentions subscriptions (free)
 ```
 
@@ -272,6 +273,7 @@ Covers all 565 DataForSEO v3 endpoints (paths and parameters come from DataForSE
 ```bash
 dataforseo-cli api --list jobs                                   # find endpoints (path, method, queue?, description)
 dataforseo-cli api --describe serp/google/jobs/live/advanced     # its request fields
+dataforseo-cli api serp/google/jobs/live/advanced keyword="seo manager" location_code=2840
 dataforseo-cli api serp/google/jobs/live/advanced --body '{"keyword":"seo manager","location_code":2840}'
 dataforseo-cli api backlinks/referring_networks/live --body-file body.json
 echo '[{"target":"example.com"}]' | dataforseo-cli api backlinks/summary/live
@@ -279,7 +281,7 @@ dataforseo-cli api serp/google/organic/live/advanced --queue --body '{"keyword":
 dataforseo-cli api ai_optimization/claude/llm_responses/models   # GET endpoints need no body
 ```
 
-`--body` takes one task object or an array of tasks (`--body -` reads stdin). A `task_post` path is polled until the result is ready.
+Request fields go after the path as `key=value` (values that parse as JSON, such as `2840`, `true` or `["a","b"]`, keep their type), or as `--body` with one task object or an array of tasks (`--body -` reads stdin). A `task_post` path is polled until the result is ready.
 
 ## Notes
 
