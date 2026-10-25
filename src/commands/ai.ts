@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { Ctx, Mapped, register } from "../registry";
 import { fromItems, list, trend, truncate } from "../map";
-import { results, Row } from "../trim";
+import { domainOf, results, Row, stripMarkdown } from "../trim";
 import { answerRows } from "./serp";
 
 const AI = "ai_optimization";
@@ -13,6 +13,12 @@ export function mentionTarget(t: string): Record<string, any> {
 
 const platformOpt: [string, string, string?] = ["--platform <p>", "chat_gpt or google (AI Overviews); default both"];
 const platform = (o: any) => (o.platform ? { platform: o.platform } : {});
+
+// LLM mention aggregates are lists of { key, mentions, ai_search_volume }.
+const keyCount = (list: any[], key: string) => (list || []).find((x: any) => x.key === key)?.mentions ?? "";
+const topKeys = (list: any[], n = 5) => (list || []).slice(0, n).map((x: any) => domainOf(String(x.key))).join(",");
+
+const DIMENSIONS = ["platform", "sources_domain", "search_results_domain", "brand_entities_title", "brand_entities_category"];
 
 const MODELS: Record<string, string> = {
   chatgpt: "gpt-5.4-mini",
@@ -40,8 +46,8 @@ export function registerAi(program: Command): void {
       platform: "platform",
       question: (i: any, ctx: Ctx) => truncate(i.question, ctx.trim, 140),
       ai_volume: "ai_search_volume",
-      answer: (i: any, ctx: Ctx) => truncate(i.answer, ctx.trim, 240),
-      sources: (i: any) => list((i.sources || []).map((s: any) => s.domain), 6, ","),
+      answer: (i: any, ctx: Ctx) => truncate(stripMarkdown(i.answer), ctx.trim, 240),
+      sources: (i: any) => list((i.sources || []).map((s: any) => domainOf(s.domain || s.url)), 6, ","),
       brands: (i: any) => list((i.brand_entities || []).map((b: any) => b.title), 6, ","),
     }),
   });
@@ -51,17 +57,30 @@ export function registerAi(program: Command): void {
     desc: "Aggregated LLM mention metrics for a domain or keyword (mentions, AI search volume, by platform)",
     path: `${AI}/llm_mentions/target_metrics/live`,
     args: ["<target>"],
-    options: [platformOpt],
     limit: 0,
     apiLimit: false,
     ttl: 24 * 7,
+    options: [platformOpt, ["--top <n>", "Entries per dimension", "5"]],
+    columns: "dimension (platform|sources_domain|search_results_domain|brand_entities_title|brand_entities_category), key, mentions, ai_volume",
     body: ({ args, opts }) => ({ target: [mentionTarget(args[0])], ...platform(opts) }),
+    map: (resp: any, ctx: Ctx): Mapped => {
+      const rows: Row[] = [];
+      for (const r of results(resp)) {
+        const agg = r.aggregated_metrics || {};
+        for (const dim of DIMENSIONS) {
+          for (const x of (agg[dim] || []).slice(0, parseInt(ctx.opts.top ?? "5"))) {
+            rows.push({ dimension: dim, key: /domain/.test(dim) ? domainOf(String(x.key)) : x.key, mentions: x.mentions, ai_volume: x.ai_search_volume });
+          }
+        }
+      }
+      return { rows };
+    },
   });
 
-  for (const [name, path, what] of [
-    ["top-domains", "top_mentioned_domains", "domains"],
-    ["top-pages", "top_mentioned_pages", "pages"],
-    ["top-brands", "top_mentioned_brands", "brands"],
+  for (const [name, path, what, field] of [
+    ["top-domains", "top_mentioned_domains", "domains", "domain"],
+    ["top-pages", "top_mentioned_pages", "pages", "page"],
+    ["top-brands", "top_mentioned_brands", "brands", "brand"],
   ] as const) {
     register(g, {
       name,
@@ -71,7 +90,16 @@ export function registerAi(program: Command): void {
       options: [platformOpt],
       limit: 20,
       ttl: 24 * 7,
+      columns: `${field}, mentions, ai_volume, google, chatgpt, top_sources`,
       body: ({ args, opts }) => ({ target: [mentionTarget(args[0])], ...platform(opts) }),
+      map: fromItems({
+        [field]: (i: any) => (field === "domain" ? domainOf(i.domain) : i[field]),
+        mentions: "total.mentions",
+        ai_volume: "total.ai_search_volume",
+        google: (i: any) => keyCount(i.platform, "google"),
+        chatgpt: (i: any) => keyCount(i.platform, "chat_gpt"),
+        top_sources: (i: any) => topKeys(i.sources_domain),
+      }),
     });
   }
 
@@ -88,7 +116,7 @@ export function registerAi(program: Command): void {
     map: fromItems({
       keyword: "keyword",
       ai_volume: "ai_search_volume",
-      trend: (i: any) => trend(i.ai_monthly_searches),
+      trend: (i: any) => trend(i.ai_monthly_searches, 12, "ai_search_volume"),
     }),
   });
 
@@ -103,7 +131,7 @@ export function registerAi(program: Command): void {
       ["--llm <name>", "chatgpt, claude, gemini or perplexity", "chatgpt"],
       ["--model <name>", "Model name (see: dataforseo-cli api ai_optimization/<llm>/llm_responses/models)"],
       ["--web-search", "Let the model search the web (where supported)"],
-      ["--max-tokens <n>", "Max output tokens", "800"],
+      ["--max-tokens <n>", "Max output tokens (reasoning models need 1024+; default: API default)"],
     ],
     limit: 30,
     apiLimit: false,
@@ -112,7 +140,7 @@ export function registerAi(program: Command): void {
     body: ({ args, opts }) => ({
       user_prompt: args[0],
       model_name: opts.model || MODELS[opts.llm] || MODELS.chatgpt,
-      max_output_tokens: parseInt(opts.maxTokens),
+      ...(opts.maxTokens ? { max_output_tokens: parseInt(opts.maxTokens) } : {}),
       ...(opts.webSearch ? { web_search: true } : {}),
     }),
     map: (resp: any, ctx: Ctx): Mapped => {

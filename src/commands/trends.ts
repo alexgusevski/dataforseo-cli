@@ -61,8 +61,19 @@ export function trendsSections(resp: any, ctx: Ctx): Mapped {
   for (const it of items(resp)) {
     const kws: string[] = it.keywords || [];
     if (/graph$/.test(it.type) && Array.isArray(it.data)) out.time.push(...timeRows(it.data, kws, !!ctx.opts.weekly));
-    else if (/map$|subregion/.test(it.type)) {
-      for (const r of it.data || it.interests || []) {
+    else if (/subregion/.test(it.type)) {
+      // DataForSEO Trends: interests[] per keyword, each with values[] per region
+      const regions = new Map<string, Row>();
+      for (const kwInterest of it.interests || []) {
+        for (const v of kwInterest.values || []) {
+          const row = regions.get(v.geo_name) || { region: v.geo_name };
+          row[kwInterest.keyword] = v.value;
+          regions.set(v.geo_name, row);
+        }
+      }
+      out.regions.push(...[...regions.values()].sort((a, b) => (Number(b[kws[0]]) || 0) - (Number(a[kws[0]]) || 0)));
+    } else if (/map$/.test(it.type)) {
+      for (const r of it.data || []) {
         const row: Row = { region: r.geo_name };
         kws.forEach((k, i) => (row[k] = r.values?.[i] ?? r.value ?? ""));
         out.regions.push(row);
@@ -79,7 +90,7 @@ export function registerTrends(program: Command): void {
   register(g, {
     name: "google",
     aliases: ["explore"],
-    desc: "Google Trends explore: interest over time (monthly), regions, related queries and topics (up to 5 keywords)",
+    desc: "Google Trends explore: interest over time (monthly), regions, and for a single keyword related queries and topics (up to 5 keywords)",
     path: "keywords_data/google_trends/explore/live",
     args: ["<keywords...>"],
     options: [
@@ -96,7 +107,11 @@ export function registerTrends(program: Command): void {
       keywords: args[0],
       time_range: opts.timeRange,
       type: opts.type,
-      item_types: ["google_trends_graph", "google_trends_map", "google_trends_queries_list", "google_trends_topics_list"],
+      // Related queries and topics are only returned for a single keyword.
+      item_types:
+        args[0].length === 1
+          ? ["google_trends_graph", "google_trends_map", "google_trends_queries_list", "google_trends_topics_list"]
+          : ["google_trends_graph", "google_trends_map"],
     }),
     map: trendsSections,
   });

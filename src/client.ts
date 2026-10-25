@@ -187,13 +187,14 @@ export async function call(rawPath: string, body?: unknown, opts: CallOptions = 
     throw new CliError(`${endpoint} has no queue (task_post) mode; drop --queue.`);
   }
 
-  const ttl = opts.noCache ? 0 : opts.ttlHours ?? 24;
+  // --no-cache skips the read; the fresh response is still stored for later calls.
+  const ttl = opts.ttlHours ?? 24;
   const key = cache.makeRequestKey(endpoint, tasks ?? null);
-  const hit = cache.getRequest(key, ttl);
+  const hit = opts.noCache ? null : cache.getRequest(key, ttl);
   if (hit) {
     tally.calls++;
     tally.cached++;
-    if (opts.rawFile) fs.writeFileSync(opts.rawFile, JSON.stringify(hit, null, 1));
+    if (opts.rawFile) fs.writeFileSync(opts.rawFile, JSON.stringify(hit));
     return { response: hit, cost: 0, cached: true };
   }
 
@@ -208,7 +209,7 @@ export async function call(rawPath: string, body?: unknown, opts: CallOptions = 
     }
     response = await http(method, endpoint, tasks);
   }
-  if (opts.rawFile) fs.writeFileSync(opts.rawFile, JSON.stringify(response, null, 1));
+  if (opts.rawFile) fs.writeFileSync(opts.rawFile, JSON.stringify(response));
   checkResponse(response, endpoint);
 
   const cost = useQueue

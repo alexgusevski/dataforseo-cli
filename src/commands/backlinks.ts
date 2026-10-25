@@ -70,13 +70,12 @@ export function registerBacklinks(program: Command): void {
     path: `${B}/referring_domains/live`,
     args: ["<target>"],
     options: [orderOpt("rank")],
-    columns: "domain, rank, backlinks, dofollow, spam_score, first_seen",
+    columns: "domain, rank, backlinks, spam_score, first_seen",
     body: ({ args, opts }) => ({ target: args[0], ...order(opts) }),
     map: fromItems({
       domain: "domain",
       rank: "rank",
       backlinks: "backlinks",
-      dofollow: (i: any) => (i.backlinks ?? 0) - (i.referring_links_attributes?.nofollow ?? 0) || "",
       spam_score: "backlinks_spam_score",
       first_seen: (i: any) => date(i.first_seen),
     }),
@@ -149,7 +148,7 @@ export function registerBacklinks(program: Command): void {
       rows: items(resp).map((i) => {
         const parts: any = i.domain_intersection || {};
         const first: any = Object.values(parts)[0] || {};
-        const row: Record<string, any> = { domain: first.domain || get(i, "summary.domain") || "", rank: first.rank ?? "" };
+        const row: Record<string, any> = { domain: first.target || first.domain || get(i, "summary.target") || "", rank: first.rank ?? "" };
         (ctx.args[0] as string[]).forEach((t, n) => (row[`${t}_backlinks`] = parts[String(n + 1)]?.backlinks ?? ""));
         return row;
       }),

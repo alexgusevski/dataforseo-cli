@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { Ctx, Mapped, register, TypedCommand } from "../registry";
-import { fromItems, get, pick, trend } from "../map";
+import { domainOf, fromItems, get, pick, trend } from "../map";
 import { items } from "../trim";
 
 const TTL = 24 * 30;
@@ -200,13 +200,17 @@ export function registerLabs(program: Command): void {
     args: ["<target>"],
     columns: "domain, shared, avg_pos, keywords, etv",
     body: ({ args }) => ({ target: args[0], exclude_top_domains: true }),
-    map: fromItems({
-      domain: "domain",
-      shared: "intersections",
+    map: (resp: any, ctx: Ctx) => {
+      const m = fromItems({
+        domain: "domain",
+        shared: "intersections",
       avg_pos: "avg_position",
       keywords: "full_domain_metrics.organic.count",
-      etv: "full_domain_metrics.organic.etv",
-    }, (i) => i.domain),
+        etv: "full_domain_metrics.organic.etv",
+      })(resp, ctx);
+      // the target itself comes back as its own top "competitor"
+      return { ...m, rows: m.rows.filter((r) => r.domain !== String(ctx.args[0]).replace(/^www\./, "")) };
+    },
   }));
 
   register(g, labsCmd({
@@ -236,7 +240,7 @@ export function registerLabs(program: Command): void {
     columns: "domain, keywords, avg_pos, median_pos, etv, visibility",
     body: ({ args }) => ({ keywords: args[0] }),
     map: fromItems({
-      domain: "domain",
+      domain: (i: any) => domainOf(i.domain),
       keywords: "keywords_count",
       avg_pos: "avg_position",
       median_pos: "median_position",

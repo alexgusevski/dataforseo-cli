@@ -44,6 +44,24 @@ export function truncate(text: any, opts: TrimOptions = {}, max?: number): strin
   return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
 }
 
+// Markdown to plain text: drop images and citation links, keep link text.
+export function stripMarkdown(md: any): string {
+  if (!md) return "";
+  return String(md)
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[\[\d+\]\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[`*_#>]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Remove click-tracking query parameters from result URLs.
+export function cleanUrl(url: any): string {
+  if (!url || typeof url !== "string") return "";
+  return url.replace(/([?&])(srsltid|utm_[a-z]+|gclid|fbclid|ved|sa|usg)=[^&#]*/g, "$1").replace(/[?&]+(#|$)/, "$1").replace(/\?&/, "?");
+}
+
 export function round(n: any): any {
   if (typeof n !== "number" || !isFinite(n) || Number.isInteger(n)) return n;
   if (Math.abs(n) >= 1) return Math.round(n * 100) / 100;
@@ -52,6 +70,7 @@ export function round(n: any): any {
 
 export function domainOf(url: any): string {
   if (!url || typeof url !== "string") return "";
+  if (!url.includes("/") && !url.includes(":")) return url.replace(/^www\./, "");
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {

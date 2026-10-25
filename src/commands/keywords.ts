@@ -86,7 +86,8 @@ export function registerKeywords(program: Command): void {
     body: ({ args, opts }) => ({ keywords: args[0], bid: parseFloat(opts.bid), match: opts.match }),
     map: (resp, ctx) => ({
       rows: results(resp).map((r) =>
-        pick(r, { keyword: "keyword", impressions: "impressions", clicks: "clicks", ctr: "ctr", avg_cpc: "average_cpc", cost: "cost" }, ctx)
+        // A null keyword means the forecast covers the whole keyword set
+        pick(r, { keyword: (x: any) => x.keyword ?? ctx.args[0].join(", "), impressions: "impressions", clicks: "clicks", ctr: "ctr", avg_cpc: "average_cpc", cost: "cost" }, ctx)
       ),
     }),
   });

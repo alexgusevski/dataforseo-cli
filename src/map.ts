@@ -52,12 +52,12 @@ export const fromResults =
   (resp: any, ctx: Ctx): Mapped => ({ rows: results(resp).map((r) => pick(r, spec, ctx)) });
 
 // Monthly volumes, newest first, as "v1,v2,...".
-export function trend(monthly: any, n = 12): string {
+export function trend(monthly: any, n = 12, field = "search_volume"): string {
   if (!Array.isArray(monthly)) return "";
   const sorted = [...monthly].sort((a, b) => b.year - a.year || b.month - a.month);
   return sorted
     .slice(0, n)
-    .map((m) => m.search_volume ?? "")
+    .map((m) => m[field] ?? "")
     .join(",");
 }
 

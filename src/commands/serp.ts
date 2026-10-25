@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { Ctx, Mapped, register } from "../registry";
 import { date, dom, domainOf, fromItems, truncate } from "../map";
-import { items, Row } from "../trim";
+import { cleanUrl, items, Row, stripMarkdown } from "../trim";
 
 const TTL = 12;
 
@@ -19,14 +19,14 @@ function aioRows(it: any, ctx: Ctx, type = "aio_ref"): Row[] {
   for (const r of refs) {
     if (!r?.url || seen.has(r.url)) continue;
     seen.add(r.url);
-    rows.push({ type, domain: r.domain || domainOf(r.url), title: truncate(r.title || r.source, ctx.trim, 90), url: r.url });
+    rows.push({ type, domain: domainOf(r.domain || r.url), title: truncate(r.title || r.source, ctx.trim, 60), url: cleanUrl(r.url) });
   }
   return rows;
 }
 
 function aioText(it: any): string {
-  if (it.markdown) return it.markdown;
-  return (it.items || []).map((s: any) => [s.title, s.text].filter(Boolean).join(": ")).join(" ");
+  const parts = (it.items || []).map((s: any) => [s.title, s.text].filter(Boolean).join(": ")).filter(Boolean);
+  return parts.length ? parts.join(" ") : stripMarkdown(it.markdown);
 }
 
 // One table for the whole SERP: organic results plus AI Overview, PAA, featured snippet and other features.
@@ -41,7 +41,7 @@ export function organicRows(resp: any, ctx: Ctx): Mapped {
     domain: "",
     title: aio ? `present (${aioRows(aio, ctx).length} cited)` : "absent",
     url: "",
-    snippet: aio ? truncate(aioText(aio), ctx.trim, 300) : "",
+    snippet: aio ? truncate(aioText(aio), ctx.trim, 220) : "",
   });
   if (aio) rows.push(...aioRows(aio, ctx));
   for (const it of all) {
@@ -54,10 +54,10 @@ export function organicRows(resp: any, ctx: Ctx): Mapped {
         rows.push({
           pos: it.type === "organic" ? pos : "",
           type: it.type,
-          domain: it.domain || domainOf(it.url),
-          title: truncate(it.featured_title || it.title, ctx.trim, 100),
-          url: it.url,
-          snippet: truncate(it.description, ctx.trim),
+          domain: domainOf(it.domain || it.url),
+          title: truncate(it.featured_title || it.title, ctx.trim, 90),
+          url: cleanUrl(it.url),
+          snippet: truncate(it.description, ctx.trim, 100),
         });
         break;
       case "people_also_ask":
@@ -65,10 +65,10 @@ export function organicRows(resp: any, ctx: Ctx): Mapped {
           const ans = (q.expanded_element || [])[0] || {};
           rows.push({
             type: "paa",
-            domain: ans.domain || domainOf(ans.url),
+            domain: domainOf(ans.domain || ans.url),
             title: q.title,
-            url: ans.url || "",
-            snippet: truncate(ans.description || ans.text || (ans.type === "people_also_ask_ai_overview_expanded_element" ? aioText(ans) : ""), ctx.trim),
+            url: cleanUrl(ans.url),
+            snippet: truncate(ans.description || ans.text || aioText(ans), ctx.trim, 130),
           });
         }
         break;
@@ -77,14 +77,18 @@ export function organicRows(resp: any, ctx: Ctx): Mapped {
         rows.push({ type: it.type, title: truncate((it.items || []).join("; "), ctx.trim, 300) });
         break;
       default: {
+        // SERP features (videos, forums, top stories, local pack...): one row listing their entries.
         const subs: any[] = Array.isArray(it.items) ? it.items : [];
+        const entries = subs
+          .map((s) => [domainOf(s.domain || s.url || ""), s.title || s.source || ""].filter(Boolean).join(": "))
+          .filter(Boolean);
         rows.push({
           pos: "",
           type: it.type,
-          domain: it.domain || domainOf(it.url),
-          title: truncate(it.title || subs.map((s) => s.title || s.source || s.domain).filter(Boolean).slice(0, 5).join("; "), ctx.trim, 140),
-          url: it.url || "",
-          snippet: truncate(it.description || it.text || "", ctx.trim, 120),
+          domain: domainOf(it.domain || it.url || ""),
+          title: truncate(entries.length ? entries.join("; ") : it.title, ctx.trim, 200),
+          url: cleanUrl(it.url),
+          snippet: truncate(it.description || it.text || "", ctx.trim, 100),
         });
       }
     }
@@ -95,13 +99,13 @@ export function organicRows(resp: any, ctx: Ctx): Mapped {
 
 // AI Mode and LLM-style answers: first row is the answer, then the cited sources.
 export function answerRows(text: string, refs: any[], ctx: Ctx, extra: Row = {}): Row[] {
-  const rows: Row[] = [{ type: "answer", ...extra, title: "", url: "", text: truncate(text, ctx.trim, 1200) }];
+  const rows: Row[] = [{ type: "answer", ...extra, title: "", url: "", text: truncate(stripMarkdown(text), ctx.trim, 1200) }];
   const seen = new Set<string>();
   for (const r of refs) {
     const url = r?.url;
     if (!url || seen.has(url)) continue;
     seen.add(url);
-    rows.push({ type: "source", title: truncate(r.title || r.source || domainOf(url), ctx.trim, 90), url, text: "" });
+    rows.push({ type: "source", title: truncate(r.title || r.source || domainOf(url), ctx.trim, 80), url: cleanUrl(url), text: "" });
   }
   return rows;
 }
@@ -187,10 +191,10 @@ export function registerSerp(program: Command): void {
             pos: n.rank_group ?? it.rank_group ?? "",
             date: date(n.timestamp) || n.time_published || "",
             source: n.source || "",
-            domain: n.domain || domainOf(n.url),
+            domain: domainOf(n.domain || n.url),
             title: truncate(n.title, ctx.trim, 120),
-            url: n.url,
-            snippet: truncate(n.snippet || n.description, ctx.trim),
+            url: cleanUrl(n.url),
+            snippet: truncate(n.snippet || n.description, ctx.trim, 100),
           });
         }
       }
@@ -207,10 +211,10 @@ export function registerSerp(program: Command): void {
     limit: 20,
     apiLimit: false,
     ttl: TTL,
-    columns: "pos, title, domain, page_url",
+    columns: "pos, title, source, page_url",
     body: ({ args, opts }) => ({ keyword: args[0], depth: parseInt(opts.depth) }),
     map: fromItems(
-      { pos: "rank_group", title: "title|alt", domain: dom("source_url|url"), page_url: "source_url|url" },
+      { pos: "rank_group", title: "title|alt", source: "subtitle", page_url: (i: any) => cleanUrl(i.url) },
       (i) => i.type === "images_search"
     ),
   });
@@ -271,12 +275,12 @@ export function registerSerp(program: Command): void {
     desc: "YouTube search results",
     path: "serp/youtube/organic/live/advanced",
     args: ["<keyword>"],
-    options: [["--depth <n>", "Results to fetch", "20"]],
+    options: [["--depth <n>", "Results to fetch (YouTube block depth)", "20"]],
     limit: 20,
     apiLimit: false,
     ttl: TTL,
     columns: "pos, title, channel, views, published, duration, url",
-    body: ({ args, opts }) => ({ keyword: args[0], depth: parseInt(opts.depth), device: "desktop", os: "windows" }),
+    body: ({ args, opts }) => ({ keyword: args[0], block_depth: parseInt(opts.depth) }),
     map: fromItems(
       {
         pos: "rank_group",
@@ -285,7 +289,7 @@ export function registerSerp(program: Command): void {
         views: "views_count",
         published: (i) => date(i.timestamp) || i.publication_date,
         duration: "duration_time",
-        url: "url",
+        url: (i: any) => String(i.url || "").replace(/&pp=[^&]*/, ""),
       },
       (i) => i.type === "youtube_video"
     ),

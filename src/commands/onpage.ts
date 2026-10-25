@@ -37,9 +37,14 @@ async function crawlReport(id: string, opts: any, limit: number): Promise<void> 
   const deadline = Date.now() + parseInt(opts.timeout ?? "600") * 1000;
   let summary: any;
   for (;;) {
-    const { response } = await call(`on_page/summary/${id}`, undefined, { ttlHours: 0 });
-    summary = results(response)[0];
-    if (summary?.crawl_progress === "finished") break;
+    try {
+      const { response } = await call(`on_page/summary/${id}`, undefined, { ttlHours: 0 });
+      summary = results(response)[0];
+      if (summary?.crawl_progress === "finished") break;
+    } catch (e: any) {
+      // 40601/40602: task handed to the crawler or still queued, keep waiting
+      if (!/4060[12]/.test(e?.message || "")) throw e;
+    }
     if (Date.now() > deadline) {
       throw new CliError(`Crawl still running (${summary?.crawl_status?.pages_crawled ?? 0} pages so far); fetch later: dataforseo-cli onpage result ${id}`);
     }

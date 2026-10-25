@@ -135,7 +135,11 @@ function emitSections(sections: { name: string; rows: Row[] }[], opts: any, limi
   if (!opts.quiet) process.stderr.write(statusLine(shown) + "\n");
 }
 
+// Every typed command by its full name ("serp organic"), for tests and docs.
+export const REGISTERED = new Map<string, TypedCommand>();
+
 export function register(parent: Command, def: TypedCommand): Command {
+  REGISTERED.set(`${parent.name()} ${def.name}`, def);
   const cmd = parent.command(def.name).description(def.desc);
   for (const a of def.aliases || []) cmd.alias(a);
   for (const a of def.args || []) cmd.argument(a);

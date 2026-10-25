@@ -120,8 +120,9 @@ export function registerContent(program: Command): void {
       date_from: o.from || new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10),
       date_group: o.group,
     })),
+    // phrase_trends returns one result per period, with no items wrapper
     map: (resp: any, ctx: Ctx): Mapped => ({
-      rows: items(resp).map((i) =>
+      rows: results(resp).map((i) =>
         pick(i, { date: (x: any) => date(x.date), mentions: "total_count", sentiment: (x: any) => counts(x.connotation_types), top_domains: topDomains }, ctx)
       ),
     }),

@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { Ctx, Mapped, register, TypedCommand } from "../registry";
-import { date, fromItems, get, pick, truncate } from "../map";
+import { date, domainOf, fromItems, get, pick, truncate } from "../map";
 import { items, Row } from "../trim";
 
 const TTL = 12;
@@ -19,7 +19,7 @@ const badges = (i: any) =>
 function bsr(i: any): string {
   for (const sec of i.product_information || []) {
     for (const [k, v] of Object.entries<any>(sec.body || {})) {
-      if (/best sellers rank/i.test(k)) return String(v).replace(/\s*\(See Top 100[^)]*\)/gi, "").replace(/\s+/g, " ").trim();
+      if (/best sellers rank/i.test(k)) return String(v).replace(/\s*\(\s*See Top 100[^)]*\)/gi, "").replace(/\s+/g, " ").trim();
     }
   }
   return "";
@@ -144,7 +144,7 @@ export function registerMerchant(program: Command): void {
       rating: "product_rating.value|rating.value",
       reviews: "product_rating.votes_count|reviews_count|rating.votes_count",
       product_id: "product_id",
-    }, (i) => /google_shopping_serp|shopping/.test(i.type)),
+    }, (i) => !!i.product_id),
   });
 
   register(g, {
@@ -270,15 +270,16 @@ export function registerAppData(program: Command): void {
         ...(opts.description ? { description: opts.description } : {}),
         ...(opts.category ? { categories: [opts.category] } : {}),
       }),
+      // listings wrap each app in an `item` object
       map: fromItems({
         app_id: "app_id",
-        title: "title",
-        developer: "developer",
-        rating: "rating.value",
-        reviews: "reviews_count|rating.votes_count",
-        installs: "installs",
-        price: (i: any) => (i.is_free ? "free" : get(i, "price.current") ?? ""),
-        category: "categories",
+        title: "item.title",
+        developer: "item.developer",
+        rating: "item.rating.value",
+        reviews: "item.reviews_count|item.rating.votes_count",
+        installs: "item.installs",
+        price: (i: any) => (i.item?.is_free ? "free" : get(i, "item.price.current") ?? ""),
+        category: "item.categories|item.main_category",
       }),
     });
   }
@@ -300,9 +301,9 @@ export function registerBusiness(program: Command): void {
     limit: 20,
     apiLimit: false,
     ttl: 24,
-    columns: "pos, name, domain, rating, reviews, url",
+    columns: "pos, name, domain, rating, reviews",
     body: ({ args, opts }) => ({ keyword: args[0], depth: parseInt(opts.depth) }),
-    map: fromItems({ pos: "rank_group", name: "title", domain: "domain", rating: "rating.value", reviews: "rating.votes_count", url: "url" }),
+    map: fromItems({ pos: "rank_group", name: "title", domain: (i: any) => domainOf(i.domain), rating: "rating.value", reviews: "reviews_count|rating.votes_count" }),
   });
 
   register(g, {
@@ -392,7 +393,7 @@ export function registerBusiness(program: Command): void {
     args: ["<keyword>"],
     geo: "location",
     options: [["--depth <n>", "Results to fetch", "20"]],
-    limit: 20,
+    limit: 10,
     apiLimit: false,
     ttl: 24,
     columns: "pos, title, rating, reviews, category, url_path",
@@ -427,7 +428,7 @@ export function registerBusiness(program: Command): void {
       rating: "rating.value",
       title: "title",
       text: "review_text",
-      visit: "date_of_visit",
+      visit: (i: any) => date(i.date_of_visit).slice(0, 7),
     }),
   });
 
