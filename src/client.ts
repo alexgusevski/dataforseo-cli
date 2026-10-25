@@ -223,7 +223,7 @@ export async function call(rawPath: string, body?: unknown, opts: CallOptions = 
 }
 
 export function statusLine(rows: number | null): string {
-  const cached = tally.calls === 0 ? "n/a" : tally.cached === tally.calls ? "yes" : tally.cached ? "partial" : "no";
+  const cached = tally.calls === 0 ? "yes" : tally.cached === tally.calls ? "yes" : tally.cached ? "partial" : "no";
   const s = readSession();
   const parts = [`cost=$${tally.cost.toFixed(4)}`];
   if (rows !== null) parts.push(`rows=${rows}`);
