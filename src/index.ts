@@ -7,8 +7,17 @@ import {
   competitorKeywords,
   locations,
   languages,
+  apiLocations,
+  apiLanguages,
+  GEO_APIS,
 } from "./api";
 import { getFormat, output, formatTsv, formatJson } from "./formatters";
+import { statusLine } from "./client";
+import { registerAll } from "./commands";
+
+function done(rows: number): void {
+  process.stderr.write(statusLine(rows) + "\n");
+}
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -19,7 +28,7 @@ const program = new Command();
 program
   .name("dataforseo-cli")
   .description("Lightweight keyword research CLI powered by DataForSEO")
-  .version("1.0.6");
+  .version(require("../package.json").version);
 
 // Handle --print-cache before parsing commands
 if (process.argv.includes("--print-cache")) {
@@ -82,6 +91,7 @@ outputOpts(
       trend: r.trend.join(","),
     }));
     console.log(output(rows, fmt));
+    done(rows.length);
   } catch (e: any) {
     console.error("Error:", e.message);
     process.exit(1);
@@ -114,6 +124,7 @@ outputOpts(
       competition: round2(r.competition),
     }));
     console.log(output(rows, fmt));
+    done(rows.length);
   } catch (e: any) {
     console.error("Error:", e.message);
     process.exit(1);
@@ -147,6 +158,7 @@ outputOpts(
       url: r.url,
     }));
     console.log(output(rows, fmt));
+    done(rows.length);
   } catch (e: any) {
     console.error("Error:", e.message);
     process.exit(1);
@@ -174,9 +186,10 @@ program
   .description("Search location codes")
   .argument("[search]", "Filter locations by name")
   .option("--json", "Output as JSON")
+  .option("--api <api>", `Location list of a specific API: ${Object.keys(GEO_APIS).join(", ")} (default: ads)`)
   .action(async (search: string | undefined, opts: any) => {
     try {
-      const results = await locations(search);
+      const results = opts.api ? await apiLocations(opts.api, search) : await locations(search);
       console.log(opts.json ? formatJson(results) : formatTsv(results));
     } catch (e: any) {
       console.error("Error:", e.message);
@@ -190,9 +203,10 @@ program
   .description("Search language codes")
   .argument("[search]", "Filter languages by name")
   .option("--json", "Output as JSON")
+  .option("--api <api>", "Language list of a specific API (see locations --help)")
   .action(async (search: string | undefined, opts: any) => {
     try {
-      const results = await languages(search);
+      const results = opts.api ? await apiLanguages(opts.api, search) : await languages(search);
       console.log(opts.json ? formatJson(results) : formatTsv(results));
     } catch (e: any) {
       console.error("Error:", e.message);
@@ -200,4 +214,6 @@ program
     }
   });
 
-program.parse();
+registerAll(program);
+
+program.parseAsync();

@@ -4,3 +4,5 @@ dist/
 .config/
 *.log
 .DS_Store
+test/fixtures/raw/
+test/.*.tmp.ts

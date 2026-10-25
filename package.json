@@ -1,6 +1,6 @@
 {
   "name": "dataforseo-cli",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Lightweight CLI for DataForSEO keyword research, optimized for LLM/agent use",
   "main": "dist/index.js",
   "bin": {
@@ -8,13 +8,17 @@
   },
   "files": [
     "dist/",
+    "data/",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "smoke": "bash scripts/smoke.sh",
+    "gen-endpoints": "node scripts/gen-endpoints.mjs"
   },
   "repository": {
     "type": "git",
@@ -39,8 +43,11 @@
     "commander": "^12.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
-    "ts-node": "^10.9.0"
+    "js-yaml": "^4.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
   }
 }

@@ -1,33 +1,12 @@
-import { getAuthHeader } from "./config";
 import * as cache from "./cache";
+import { call } from "./client";
 
-const BASE = "https://api.dataforseo.com/v3";
-
+// Legacy commands keep their own per-keyword cache, so the request cache is off here
+// (except for the free location/language lists).
 async function request(path: string, body?: unknown): Promise<any> {
-  const opts: RequestInit = {
-    method: body ? "POST" : "GET",
-    headers: {
-      Authorization: getAuthHeader(),
-      "Content-Type": "application/json",
-    },
-  };
-  if (body) opts.body = JSON.stringify(body);
-
-  const res = await fetch(`${BASE}${path}`, opts);
-  const data: any = await res.json();
-
-  if (data.status_code !== 20000) {
-    throw new Error(`API error ${data.status_code}: ${data.status_message}`);
-  }
-
-  const task = data.tasks?.[0];
-  if (!task || task.status_code !== 20000) {
-    throw new Error(
-      `Task error ${task?.status_code}: ${task?.status_message}`
-    );
-  }
-
-  return task.result;
+  const ttlHours = body ? 0 : 24 * 30;
+  const { response } = await call(path, body, { ttlHours });
+  return response.tasks[0].result;
 }
 
 export interface VolumeResult {
@@ -278,4 +257,67 @@ export async function languages(search?: string): Promise<LanguageResult[]> {
     name: l.language_name,
     code: l.language_code,
   }));
+}
+
+// Location/language lists differ per API; --api picks which one to search.
+export const GEO_APIS: Record<string, { locations: string; languages?: string }> = {
+  ads: { locations: "keywords_data/google_ads/locations", languages: "keywords_data/google_ads/languages" },
+  serp: { locations: "serp/google/locations", languages: "serp/google/languages" },
+  labs: { locations: "dataforseo_labs/locations_and_languages", languages: "dataforseo_labs/locations_and_languages" },
+  trends: { locations: "keywords_data/google_trends/locations", languages: "keywords_data/google_trends/languages" },
+  dfs_trends: { locations: "keywords_data/dataforseo_trends/locations" },
+  bing: { locations: "keywords_data/bing/locations", languages: "keywords_data/bing/languages" },
+  amazon: { locations: "merchant/amazon/locations", languages: "merchant/amazon/languages" },
+  shopping: { locations: "merchant/google/locations", languages: "merchant/google/languages" },
+  apple: { locations: "app_data/apple/locations", languages: "app_data/apple/languages" },
+  google_play: { locations: "app_data/google/locations", languages: "app_data/google/languages" },
+  business: { locations: "business_data/google/locations", languages: "business_data/google/languages" },
+  tripadvisor: { locations: "business_data/tripadvisor/locations", languages: "business_data/tripadvisor/languages" },
+  content: { locations: "content_analysis/locations", languages: "content_analysis/languages" },
+  ai: { locations: "ai_optimization/ai_keyword_data/locations_and_languages", languages: "ai_optimization/ai_keyword_data/locations_and_languages" },
+  llm_mentions: { locations: "ai_optimization/llm_mentions/locations_and_languages", languages: "ai_optimization/llm_mentions/locations_and_languages" },
+  chatgpt: { locations: "ai_optimization/chat_gpt/llm_scraper/locations", languages: "ai_optimization/chat_gpt/llm_scraper/languages" },
+};
+
+function geoApi(api: string) {
+  const g = GEO_APIS[api];
+  if (!g) throw new Error(`Unknown --api "${api}". Use one of: ${Object.keys(GEO_APIS).join(", ")}`);
+  return g;
+}
+
+export async function apiLocations(api: string, search?: string): Promise<LocationResult[]> {
+  let items: any[] = (await request(geoApi(api).locations)) || [];
+  if (search) {
+    const q = search.toLowerCase();
+    items = items.filter(
+      (l: any) =>
+        l.location_name?.toLowerCase().includes(q) ||
+        l.country_iso_code?.toLowerCase().includes(q) ||
+        String(l.location_code) === q
+    );
+  }
+  return items.slice(0, 50).map((l: any) => ({
+    code: l.location_code,
+    name: l.location_name,
+    country: l.country_iso_code,
+    type: l.location_type,
+  }));
+}
+
+export async function apiLanguages(api: string, search?: string): Promise<LanguageResult[]> {
+  const g = geoApi(api);
+  if (!g.languages) throw new Error(`--api ${api} has no language list`);
+  const raw: any[] = (await request(g.languages)) || [];
+  // locations_and_languages endpoints nest languages under each location
+  const flat: any[] = raw.flatMap((l: any) => (Array.isArray(l.available_languages) ? l.available_languages : [l]));
+  const seen = new Map<string, LanguageResult>();
+  for (const l of flat) {
+    if (l.language_code && !seen.has(l.language_code)) seen.set(l.language_code, { name: l.language_name, code: l.language_code });
+  }
+  let items = [...seen.values()];
+  if (search) {
+    const q = search.toLowerCase();
+    items = items.filter((l) => l.name?.toLowerCase().includes(q) || l.code?.toLowerCase().includes(q));
+  }
+  return items;
 }
