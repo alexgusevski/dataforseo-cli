@@ -1,228 +1,132 @@
 ---
 name: dataforseo-cli
-description: LLM-friendly keyword research CLI for AI agents. Check search volume, CPC, keyword difficulty, and competition via DataForSEO API. Find related keywords, analyze competitor rankings. Outputs TSV by default (optimized for agent context windows). Use when doing SEO research, content planning, or competitive keyword analysis.
+description: Compact, full-coverage DataForSEO v3 CLI for AI agents. Discover, describe, and call any pinned operation for SERP, keywords, competitors, backlinks, on-page SEO, business, content, merchant, app, domain, or AI research.
 license: MIT
 metadata:
   author: alexgusevski
-  version: "1.0.6"
+  version: "2.0.0"
 ---
 
-# Keyword Research with dataforseo-cli
+# DataForSEO CLI
 
-LLM-friendly keyword research CLI. Wraps the DataForSEO API and outputs TSV by default — compact, structured, and optimized for agent context windows.
+Use `dfs` (`dataforseo-cli` is identical) for structured SEO research. It bundles an offline, reduced catalog of all 570 operations in a pinned official OpenAPI specification and permits relative-path passthrough for future endpoints.
 
-**npm:** https://www.npmjs.com/package/dataforseo-cli
-**GitHub:** https://github.com/alexgusevski/dataforseo-cli
+## Operating loop
 
-## Setup
-
-### 1. Install from npm
+Never guess an operation ID or request shape:
 
 ```bash
-npm install -g dataforseo-cli
+# Offline; no credentials, API call, or charge
+dfs endpoints <search terms> [--family FAMILY] [-X METHOD]
+dfs describe <OPERATION_OR_PATH> [--all-fields]
+
+# Online; can be billable
+dfs api <OPERATION_OR_PATH> [request fields...]
 ```
 
-### 2. Check credentials
+With no terms, `dfs endpoints` lists families and counts. Search terms are AND-matched across operation, path, fields, family, and summary. `describe` prints required/conditional fields, a schema-filtered upstream example, `.ai` eligibility, and official docs; use `--all-fields` for optionals or `--json` for the full catalog entry. Disambiguate duplicate IDs with `-X` or a path.
+
+For an uncatalogued new endpoint, pass a relative path and explicit method:
 
 ```bash
-dataforseo-cli status
+dfs api /v3/new_family/new_endpoint -X POST --data @request.json
 ```
 
-If credentials are already configured, you're good to go. If not, authenticate:
+Do not pass absolute URLs. The CLI does not retry requests; do not automatically repeat a potentially billable POST.
+
+## Input rules
+
+- `key=value` is a string, including numeric-looking values.
+- `key:=JSON` preserves JSON type: `limit:=20`, `exact_match:=true`, `'keywords:=["a","b"]'`, `'filters:=[["field",">",10]]'`.
+- Catalogued task bodies auto-wrap one object as `[object]`; pass a JSON array to batch tasks.
+- `--data/-d` accepts inline JSON, `@file`, or `-` for explicit stdin. Do not mix it with positional body fields.
+- A field matching `{name}` fills and URL-encodes that path parameter: `dfs api GoogleOrganicTaskGetAdvanced id=TASK_ID`.
+- For GET/HEAD, remaining positional fields become query parameters. `-q/--query key=value` adds explicit query parameters and also accepts `key:=JSON`.
+
+## Output rules
+
+Generic `api` output defaults to compact one-line JSON.
 
 ```bash
-# With login + password
-dataforseo-cli --set-credentials login=YOUR_LOGIN password=YOUR_PASSWORD
-
-# Or with base64 token (from DataForSEO email)
-dataforseo-cli --set-credentials base64=YOUR_BASE64_TOKEN
+dfs api GoogleKeywordSuggestionsLive 'keyword=seo tools' location_code:=2840 \
+  --fields 'keyword,volume=keyword_info.search_volume,kd=keyword_properties.keyword_difficulty'
 ```
 
-Credentials are stored in `~/.config/dataforseo-cli/config.json`. The `locations` and `languages` commands work without credentials (local data).
+`--fields name,alias=dot.path` projects common `items` arrays and defaults to TSV. Use `--select dot.path` before projection. Formats: `-f json|jsonl|tsv|table`.
 
-## Commands
+Eligible Live, Task GET, and location endpoints default to DataForSEO `.ai`. `.ai` is compact but lossy:
 
-### `status` — Check credentials
+- Default: `.ai` when eligible; otherwise locally compact the routine envelope.
+- `--no-ai`: standard endpoint, locally compacted result.
+- `--full`: standard endpoint and complete response envelope.
 
-Check if API credentials are configured without making any API calls.
+Use `--full` when any omitted metadata could matter. Do not combine it with an explicit `.ai` path.
+
+## Research recipes
+
+These verified operation IDs are in the bundled catalog. The calls below can incur DataForSEO charges.
 
 ```bash
-dataforseo-cli status
+# Google SERP
+dfs api GoogleOrganicLiveAdvanced 'keyword=best crm software' \
+  location_code:=2840 language_code=en depth:=20 \
+  --fields 'type,rank=rank_group,domain,url,title'
+
+# Labs keyword expansion
+dfs api GoogleKeywordSuggestionsLive 'keyword=technical seo' \
+  location_code:=2840 language_code=en limit:=50 \
+  --fields 'keyword,volume=keyword_info.search_volume,kd=keyword_properties.keyword_difficulty'
+
+# Labs competitor rankings
+dfs api GoogleRankedKeywordsLive target=example.com \
+  location_code:=2840 language_code=en limit:=50 \
+  --fields 'keyword=keyword_data.keyword,position=ranked_serp_element.serp_item.rank_group,url=ranked_serp_element.serp_item.url'
+
+# Backlinks
+dfs api SummaryLive target=example.com include_subdomains:=true
+dfs api BacklinksLive target=example.com limit:=50 \
+  --fields 'source=url_from,target=url_to,domain=domain_from,rank,dofollow'
+
+# On-page
+dfs api InstantPages url=https://example.com load_resources:=true enable_browser_rendering:=true
+dfs api ContentParsingLive url=https://example.com markdown_view:=true
 ```
 
-Exits 0 if configured, exits 1 if not. Shows login username (not password).
+Prefer `--fields` when only a few columns are needed. Run `describe --all-fields` before adding fields copied from another endpoint.
 
-### `volume` — Keyword metrics
+## Async tasks
 
-Get search volume, CPC, keyword difficulty (0–100), competition level, and 12-month search trend.
+Live endpoints return immediately. Task POST creates work; status `20100` means **Task Created**, so preserve the returned `id` and later use the matching Task GET:
 
 ```bash
-dataforseo-cli volume <keywords...> [options]
+dfs api GoogleOrganicTaskPost 'keyword=seo tools' location_code:=2840 language_code=en
+dfs api GoogleOrganicTaskGetAdvanced id=TASK_ID
 ```
 
-**Arguments:**
-- `<keywords...>` — One or more keywords (required). Batch multiple keywords in one call to save API requests.
+Do not interpret `20100` as the final result.
 
-**Options:**
-- `-l, --location <code>` — Location code (default: `2840` = US)
-- `--language <code>` — Language code (default: `en`)
-- `--json` — Output as JSON array
-- `--table` / `--human` — Output as human-readable table
-
-**Example:**
-```bash
-dataforseo-cli volume "seo tools" "keyword research" "backlink checker"
-```
-
-**Output (TSV):**
-```
-keyword	volume	cpc	difficulty	competition	trend
-seo tools	12500	2.35	45	HIGH	14800,13900,12500,12100,11800,12000,12500,13000,12800,12500,12200,11900
-```
-
-- `difficulty` — 0–100 scale (0-30 easy, 31-60 medium, 61-100 hard)
-- `cpc` — Cost per click in USD
-- `competition` — LOW / MEDIUM / HIGH
-- `trend` — 12 monthly search volumes, newest first
-
-### `related` — Keyword suggestions
-
-Find related keyword ideas from a seed keyword.
+## Credentials, shortcuts, and cache
 
 ```bash
-dataforseo-cli related <seed> [options]
+export DATAFORSEO_LOGIN='login@example.com'
+export DATAFORSEO_PASSWORD='password'
+# Or raw base64(login:password), without a "Basic " prefix:
+export DATAFORSEO_AUTH='BASE64_TOKEN'
+dfs status
 ```
 
-**Arguments:**
-- `<seed>` — Seed keyword (required, single keyword)
+Environment credentials are preferred for agents and take precedence. Legacy stored credentials remain available via `dfs --set-credentials login=... password=...` or `base64=...`, but command-line secrets may be exposed in history/process listings. Stored credentials: `~/.config/dataforseo-cli/config.json`, user-only permissions.
 
-**Options:**
-- `-l, --location <code>` — Location code (default: `2840` = US)
-- `--language <code>` — Language code (default: `en`)
-- `-n, --limit <n>` — Max results (default: `50`)
-- `--json` — Output as JSON array
-- `--table` / `--human` — Output as human-readable table
-
-**Example:**
-```bash
-dataforseo-cli related "ai agents" -n 20
-```
-
-**Output (TSV):**
-```
-keyword	volume	cpc	competition	difficulty
-best ai agents	8100	3.10	0.82	52
-ai agent framework	2400	1.85	0.65	38
-```
-
-### `competitor` — Domain keyword analysis
-
-See what keywords a domain currently ranks for.
+Curated commands remain available:
 
 ```bash
-dataforseo-cli competitor <domain> [options]
+dfs volume <keywords...>
+dfs related <seed> [-n LIMIT]
+dfs competitor <domain> [-n LIMIT]
+dfs locations [search] [--limit N | --all]
+dfs languages [search]
 ```
 
-**Arguments:**
-- `<domain>` — Target domain (required, e.g. `ahrefs.com`)
+The first three default to TSV and use a private, atomic per-key cache under `~/.cache/dataforseo-cli/` for seven days; `dfs --print-cache` inspects it. `locations` and `languages` are authenticated API calls, not offline data; locations defaults to 50 matches unless `--all` is set. Generic `api` calls are not cached.
 
-**Options:**
-- `-l, --location <code>` — Location code (default: `2840` = US)
-- `--language <code>` — Language code (default: `en`)
-- `-n, --limit <n>` — Max results (default: `50`)
-- `--json` — Output as JSON array
-- `--table` / `--human` — Output as human-readable table
-
-**Example:**
-```bash
-dataforseo-cli competitor semrush.com -n 10
-```
-
-**Output (TSV):**
-```
-keyword	position	volume	cpc	difficulty	url
-backlink checker	1	33100	4.50	72	https://ahrefs.com/backlink-checker
-```
-
-### `locations` — Look up location codes
-
-List all available location codes, or filter by name. Works offline — no API credentials needed.
-
-```bash
-dataforseo-cli locations [search] [--json]
-```
-
-**Arguments:**
-- `[search]` — Optional filter by name (e.g. `sweden`, `new york`)
-
-**Without search** — lists all locations:
-```bash
-dataforseo-cli locations
-```
-
-**With search** — filters by name:
-```bash
-dataforseo-cli locations sweden
-```
-
-**Output (TSV):**
-```
-code	name	country	type
-2752	Sweden	SE	Country
-```
-
-### `languages` — Look up language codes
-
-List all available language codes, or filter by name. Works offline — no API credentials needed.
-
-```bash
-dataforseo-cli languages [search] [--json]
-```
-
-**Without search** — lists all languages:
-```bash
-dataforseo-cli languages
-```
-
-**With search** — filters by name:
-```bash
-dataforseo-cli languages swedish
-```
-
-**Output (TSV):**
-```
-name	code
-Swedish	sv
-```
-
-## Output Formats
-
-All data commands default to TSV (tab-separated values) — the most token-efficient structured format for LLMs.
-
-| Flag | Description |
-|------|-------------|
-| *(default)* | TSV — fewest tokens, best for agent pipelines |
-| `--json` | JSON array — use when you need structured parsing |
-| `--table` / `--human` | Human-readable aligned table — for human review |
-
-## Caching
-
-Results are cached in `~/.config/dataforseo-cli/cache/` to avoid duplicate API calls and save costs. Same query + location + language = cache hit.
-
-```bash
-dataforseo-cli --print-cache
-```
-
-## Workflow: SEO Article Research
-
-1. **Start with seed keyword:** `dataforseo-cli volume "your topic"`
-2. **Expand:** `dataforseo-cli related "your topic" -n 30`
-3. **Filter:** Pick keywords with volume > 100, difficulty < 60
-4. **Check competitors:** `dataforseo-cli competitor competitor-domain.com -n 20`
-5. **Write article** targeting the best keyword cluster
-
-## Tips
-- Batch keywords in `volume` — DataForSEO charges per API request, not per keyword
-- Default location is USA (2840). Always set `--location` for local/international SEO
-- Use `locations` and `languages` without arguments to see all available options
-- Difficulty scale: 0-30 easy, 31-60 medium, 61-100 hard
+Catalog maintainers working from a source checkout can run `node scripts/generate-catalog.mjs --check` to verify the pinned generated file or omit `--check` to regenerate it. The compact npm tarball excludes generator-only sources and dependencies. Update `SOURCE_COMMIT` deliberately before adopting a newer official schema.

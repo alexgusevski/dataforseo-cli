@@ -1,33 +1,27 @@
-import { getAuthHeader } from "./config";
 import * as cache from "./cache";
+import {
+  compactDataForSeoResponse,
+  executeApiRequest,
+  getFailedTasks,
+} from "./transport";
 
-const BASE = "https://api.dataforseo.com/v3";
+// v1 cross-populated this namespace with incomplete suggestion/ranking rows.
+// A versioned namespace prevents those partial entries from masking real
+// search-volume responses after upgrading.
+const VOLUME_CACHE_NAMESPACE = "volume-v2";
 
 async function request(path: string, body?: unknown): Promise<any> {
-  const opts: RequestInit = {
-    method: body ? "POST" : "GET",
-    headers: {
-      Authorization: getAuthHeader(),
-      "Content-Type": "application/json",
-    },
-  };
-  if (body) opts.body = JSON.stringify(body);
-
-  const res = await fetch(`${BASE}${path}`, opts);
-  const data: any = await res.json();
-
-  if (data.status_code !== 20000) {
-    throw new Error(`API error ${data.status_code}: ${data.status_message}`);
+  const data = await executeApiRequest({
+    method: body === undefined ? "GET" : "POST",
+    path,
+    body,
+  });
+  const failedTasks = getFailedTasks(data);
+  if (failedTasks.length) {
+    const task = failedTasks[0];
+    throw new Error(`Task error ${task.status_code}: ${task.status_message}`);
   }
-
-  const task = data.tasks?.[0];
-  if (!task || task.status_code !== 20000) {
-    throw new Error(
-      `Task error ${task?.status_code}: ${task?.status_message}`
-    );
-  }
-
-  return task.result;
+  return compactDataForSeoResponse(data);
 }
 
 export interface VolumeResult {
@@ -49,8 +43,8 @@ export async function searchVolume(
   const uncached: string[] = [];
 
   for (const kw of keywords) {
-    const key = cache.makeKey("volume", kw, locationCode, languageCode);
-    const hit = cache.get(key);
+    const key = cache.makeKey(VOLUME_CACHE_NAMESPACE, kw, locationCode, languageCode);
+    const hit = cache.get<VolumeResult>(key);
     if (hit) {
       cached.push(hit);
     } else {
@@ -96,7 +90,7 @@ export async function searchVolume(
 
   // Cache each keyword individually
   for (const item of fresh) {
-    const key = cache.makeKey("volume", item.keyword, locationCode, languageCode);
+    const key = cache.makeKey(VOLUME_CACHE_NAMESPACE, item.keyword, locationCode, languageCode);
     cache.set(key, item);
   }
 
@@ -121,7 +115,7 @@ export async function relatedKeywords(
   limit: number = 50
 ): Promise<RelatedResult[]> {
   const key = cache.makeKey("related", `${seed}:${limit}`, locationCode, languageCode);
-  const hit = cache.get(key);
+  const hit = cache.get<RelatedResult[]>(key);
   if (hit) return hit;
 
   const result = await request(
@@ -148,21 +142,6 @@ export async function relatedKeywords(
 
   cache.set(key, data);
 
-  // Cross-populate volume cache with keyword data we already have
-  for (const item of data) {
-    const volKey = cache.makeKey("volume", item.keyword, locationCode, languageCode);
-    if (!cache.get(volKey)) {
-      cache.set(volKey, {
-        keyword: item.keyword,
-        volume: item.volume,
-        cpc: item.cpc,
-        competition: String(item.competition),
-        difficulty: item.difficulty,
-        trend: [],
-      } as VolumeResult);
-    }
-  }
-
   return data;
 }
 
@@ -182,7 +161,7 @@ export async function competitorKeywords(
   limit: number = 50
 ): Promise<CompetitorResult[]> {
   const key = cache.makeKey("competitor", `${domain}:${limit}`, locationCode, languageCode);
-  const hit = cache.get(key);
+  const hit = cache.get<CompetitorResult[]>(key);
   if (hit) return hit;
 
   const result = await request(
@@ -209,22 +188,6 @@ export async function competitorKeywords(
 
   cache.set(key, data);
 
-  // Cross-populate volume cache
-  for (const item of data) {
-    if (!item.keyword) continue;
-    const volKey = cache.makeKey("volume", item.keyword, locationCode, languageCode);
-    if (!cache.get(volKey)) {
-      cache.set(volKey, {
-        keyword: item.keyword,
-        volume: item.volume,
-        cpc: item.cpc,
-        competition: "",
-        difficulty: item.difficulty,
-        trend: [],
-      } as VolumeResult);
-    }
-  }
-
   return data;
 }
 
@@ -248,7 +211,7 @@ export async function locations(search?: string): Promise<LocationResult[]> {
     );
   }
 
-  return items.slice(0, 50).map((l: any) => ({
+  return items.map((l: any) => ({
     code: l.location_code,
     name: l.location_name,
     country: l.country_iso_code,

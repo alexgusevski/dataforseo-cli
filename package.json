@@ -1,24 +1,28 @@
 {
   "name": "dataforseo-cli",
-  "version": "1.0.6",
-  "description": "Lightweight CLI for DataForSEO keyword research, optimized for LLM/agent use",
+  "version": "2.0.0",
+  "description": "Compact, full-coverage DataForSEO CLI optimized for AI agents",
   "main": "dist/index.js",
   "bin": {
-    "dataforseo-cli": "dist/index.js"
+    "dataforseo-cli": "dist/index.js",
+    "dfs": "dist/index.js"
   },
   "files": [
-    "dist/",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "SKILL.md"
   ],
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test test/*.test.js",
     "dev": "ts-node src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm test"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexgusevski/dataforseo-cli"
+    "url": "git+https://github.com/alexgusevski/dataforseo-cli.git"
   },
   "homepage": "https://github.com/alexgusevski/dataforseo-cli#readme",
   "keywords": [
@@ -39,8 +43,9 @@
     "commander": "^12.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
     "@types/node": "^22.0.0",
-    "ts-node": "^10.9.0"
+    "ts-node": "^10.9.0",
+    "typescript": "^5.7.0",
+    "yaml": "^2.9.0"
   }
 }
